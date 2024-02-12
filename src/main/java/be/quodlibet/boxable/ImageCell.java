@@ -1,66 +1,67 @@
 package be.quodlibet.boxable;
 
-import org.apache.pdfbox.pdmodel.PDPage;
-
 import be.quodlibet.boxable.image.Image;
+import org.apache.pdfbox.pdmodel.PDPage;
 
 public class ImageCell<T extends PDPage> extends Cell<T> {
 
-	private Image img;
-	
-	private final HorizontalAlignment align;
-	
-	private final VerticalAlignment valign;
+  private Image img;
 
-	ImageCell(Row<T> row, float width, Image image, boolean isCalculated) {
-		super(row, width, null, isCalculated);
-		this.img = image;
-		if(image.getWidth() > getInnerWidth()){
-			scaleToFit();
-		}
-		this.align = HorizontalAlignment.LEFT;
-		this.valign = VerticalAlignment.TOP;
-	}
+  private final HorizontalAlignment align;
 
-	public void scaleToFit() {
-		img = img.scale(getInnerWidth());
-	}
+  private final VerticalAlignment valign;
 
-	ImageCell(Row<T> row, float width, Image image, boolean isCalculated, HorizontalAlignment align,
-			VerticalAlignment valign) {
-		super(row, width, null, isCalculated, align, valign);
-		this.img = image;
-		if(image.getWidth() > getInnerWidth()){
-			scaleToFit();
-		}
-		this.align = align;
-		this.valign = valign;
-	}
+  ImageCell(Row<T> row, float width, Image image, boolean isCalculated) {
+    super(row, width, null, isCalculated);
+    this.img = image;
+    if (image.getWidth() > getInnerWidth()) {
+      scaleToFit();
+    }
+    this.align = HorizontalAlignment.LEFT;
+    this.valign = VerticalAlignment.TOP;
+  }
 
-	@Override
-	public float getTextHeight() {
-		return img.getHeight();
-	}
+  public void scaleToFit() {
+    img = img.scale(getInnerWidth());
+  }
 
-	@Override
-	public float getHorizontalFreeSpace() {
-		return getInnerWidth() - img.getWidth();
-	}
-	
-	@Override
-	public float getVerticalFreeSpace() {
-		return getInnerHeight() - img.getHeight();
-	}
+  ImageCell(
+      Row<T> row,
+      float width,
+      Image image,
+      boolean isCalculated,
+      HorizontalAlignment align,
+      VerticalAlignment valign) {
+    super(row, width, null, isCalculated, align, valign);
+    this.img = image;
+    if (image.getWidth() > getInnerWidth()) {
+      scaleToFit();
+    }
+    this.align = align;
+    this.valign = valign;
+  }
 
+  @Override
+  public float getTextHeight() {
+    return img.getHeight();
+  }
 
-	/**
-	 * <p>
-	 * Method which retrieve {@link Image}
-	 * </p>
-	 * 
-	 * @return {@link Image}
-	 */
-	public Image getImage() {
-		return img;
-	}
+  @Override
+  public float getHorizontalFreeSpace() {
+    return getInnerWidth() - img.getWidth();
+  }
+
+  @Override
+  public float getVerticalFreeSpace() {
+    return getInnerHeight() - img.getHeight();
+  }
+
+  /**
+   * Method which retrieve {@link Image}
+   *
+   * @return {@link Image}
+   */
+  public Image getImage() {
+    return img;
+  }
 }

@@ -5,11 +5,11 @@ import org.apache.pdfbox.pdmodel.PDPage;
 
 public interface PageProvider<T extends PDPage> {
 
-	T createPage();
+  T createPage();
 
-	T nextPage();
+  T nextPage();
 
-	T previousPage();
+  T previousPage();
 
-	PDDocument getDocument();
+  PDDocument getDocument();
 }
