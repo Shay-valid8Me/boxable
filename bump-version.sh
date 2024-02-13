@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Define the file path
 file_path="build.gradle"
 

@@ -1,11 +1,8 @@
-[Boxable](http://dhorions.github.io/boxable/) - A java library to build tables in PDF documents.
+[Boxable](https://github.com/Shay-valid8Me/boxable/) - A java library to build tables in PDF documents.
 =======
 
-[![Join the chat at https://gitter.im/dhorions/boxable](https://badges.gitter.im/dhorions/boxable.svg)](https://gitter.im/dhorions/boxable?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Build Status](https://travis-ci.org/dhorions/boxable.svg?branch=master)](https://travis-ci.org/dhorions/boxable)
-[![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=5UL3NVLA852MN&source=url)
 
-Boxable is a library that can be used to easily create tables in pdf documents.  It uses the [PDFBox](https://pdfbox.apache.org/) PDF library under the hood.
+Forked from [Boxable](http://dhorions.github.io/boxable/). Boxable is a library that can be used to easily create tables in pdf documents.  It uses the [PDFBox](https://pdfbox.apache.org/) PDF library under the hood.
 
 # Features
 
@@ -21,19 +18,37 @@ Boxable is a library that can be used to easily create tables in pdf documents. 
 - rotated text (by 90 degrees)
 - writing text outside tables
 
-# Maven
-```xml
-<dependency>
-    <groupId>com.github.dhorions</groupId>
-    <artifactId>boxable</artifactId>
-    <version>1.7.0</version>
-</dependency>
+# Gradle
+``` 
+implementation group: 'com.valid8me.opensource', name: 'boxable', version: "1.7.1-SNAPSHOT"
 ```
-For other build systems, check the [Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22boxable%22).
+### Build Project
+
+Run the following command `./gradlew build`
+
+### Run Unit Tests
+
+Run the following command `./gradlew clean test`
+
+### Run Unit Tests with Code Coverage
+
+Run the following command  `./gradlew clean test jacocoTestReport`
+
+### Publishing Package
+<!-- TODO: Update with valid8Me specific links -->
+Provided you've correctly increased the version number as specified in the [PullRequest Checklist](.github/pull_request_template.md).
+The [Github workflow](https://github.com/valid8me-engineering/boxable/actions/workflows/develop.yml) will take over this responsability and automatically build and publish the latest artifact for this shared library.
+
+It should not be necessary, but you may be able to directly [publish action](https://github.com/valid8me-engineering/boxable/actions/workflows/publish-package.yml).
+
+### Consuming Project From Other Repositories
+Other projects can add the corresponding Github package as a Maven repository
+in their build.gradle and declare a dependency on your library to use it.
+See [How to Add a Java Library to Project](https://horizon8.atlassian.net/wiki/spaces/VALID8ME/pages/1354596361/How+to+Add+Java+Shared+Library+to+Project) (please note this guide was written specifically for the java-shared-libs project, but the steps will be very similar)
+
 
 
 # Tutorial
-
 A tutorial is being created and will be accessible at https://github.com/dhorions/boxable/wiki.
 If you want to help, please let us know  [here](https://github.com/dhorions/boxable/issues/41).
 

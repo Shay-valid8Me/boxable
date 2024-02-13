@@ -1,0 +1,279 @@
+name: develop
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - develop  
+
+env:
+  SONAR_INSTANCE_SG_ID: sg-00d301176fed36775
+  AWS_REGION: eu-west-1
+  branch: ${{ github.head_ref || github.ref_name }}
+  AWS_DOMAIN: valid8me-apis
+  MIN-COVERAGE-OVERALL: 93
+  MIN-COVERAGE-CHANGED-FILES: 80
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v3
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v2
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_DEV }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+            aws-region: ${{ env.AWS_REGION }}
+
+
+        - name: Set up Java
+          uses: actions/setup-java@v3
+          with:
+            distribution: 'corretto'
+            java-version: '11'
+            cache: 'gradle'
+
+        - name: Set Code CodeArtifact Authentication Token
+          run: |
+            CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain valid8me-apis --domain-owner 408449989826 --region eu-west-1 --query authorizationToken --output text)
+            echo "CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN" >> $GITHUB_ENV
+
+        - name : Build
+          run: |
+           chmod +x ./gradlew
+           ./gradlew build
+
+  linting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.branch }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set Up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'corretto'
+          java-version: '11'
+          cache: 'gradle'
+
+      - name : Add env file
+        run : |
+          touch .env
+          echo "GITHUB_USERNAME=${{ secrets.GITHUB_USERNAME }}" > .env
+          echo "GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.PAT_GITHUB_PACKAGES }}" >> .env
+
+      - name: Set Code CodeArtifact Authentication Token
+        run: |
+          CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain valid8me-apis --domain-owner 408449989826 --region eu-west-1 --query authorizationToken --output text)
+          echo "CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN" >> $GITHUB_ENV
+
+      - name: Check line endings
+        run: |
+          if ! git diff --exit-code; then
+            echo "Error: Git detected changes after checkout. This may indicate a line ending issue."
+            exit 1
+          fi
+
+      - name : Gradle build and lint (w/o spotlessCheck)
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean build bootJar -x spotlessCheck
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.branch }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'corretto'
+          java-version: '11'
+          cache: 'gradle'
+
+      - name: Set Code CodeArtifact Authentication Token
+        run: |
+          CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain valid8me-apis --domain-owner 408449989826 --region eu-west-1 --query authorizationToken --output text)
+          echo "CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN" >> $GITHUB_ENV
+
+      - name : Gradle unit tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean test -x spotlessCheck
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.branch }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'corretto'
+          java-version: '11'
+          cache: 'gradle'
+
+      - name: Set Code CodeArtifact Authentication Token
+        run: |
+          CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain valid8me-apis --domain-owner 408449989826 --region eu-west-1 --query authorizationToken --output text)
+          echo "CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN" >> $GITHUB_ENV
+
+      - name: Run Code Coverage
+        run: |
+          chmod +x gradlew
+          ./gradlew test jacocoTestReport -x spotlessCheck
+
+      - name: Add coverage to PR
+        id: jacoco
+        uses: madrapps/jacoco-report@v1.6.1
+        with:
+          paths: |
+            ${{ github.workspace }}/**/build/reports/jacoco/report.xml
+          token: ${{ secrets.PAT_GITHUB }}
+          min-coverage-overall: ${{ env.MIN-COVERAGE-OVERALL }}
+          min-coverage-changed-files: ${{ env.MIN-COVERAGE-CHANGED-FILES }}
+          title: Code Coverage
+          update-comment: true
+          continue-on-error: false
+
+      - name: Fail PR if overall coverage is less than threshold
+        if: ${{ steps.jacoco.outputs.coverage-overall < env.MIN-COVERAGE-OVERALL }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            core.setFailed('Overall coverage is less than ${{ env.MIN-COVERAGE-OVERALL }}%!')
+
+  static-code-analysis:
+    if: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.branch }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'corretto'
+          java-version: '11'
+          cache: 'gradle'
+
+      - name: Set Code CodeArtifact Authentication Token
+        run: |
+          CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain valid8me-apis --domain-owner 408449989826 --region eu-west-1 --query authorizationToken --output text)
+          echo "CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN" >> $GITHUB_ENV
+
+      - name: Whitelist Runners IP address
+        id: ip
+        uses: haythem/public-ip@v1.2
+      - name: whitelist runner ip address
+        run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id $SONAR_INSTANCE_SG_ID \
+            --protocol all \
+            --port 443 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32
+
+      - name : Gradle assemble project
+        run: |
+          chmod +x ./gradlew
+          ./gradlew bootJar test jacocoTestReport -x spotlessCheck
+
+      - name: Run sonar scan
+        run: |
+          chmod +x ./gradlew
+          ./gradlew sonarqube -Dsonar.branch.name=${{env.branch}}
+
+      - name: Comment PR with SonarQube Dashboard Link
+        continue-on-error: true
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const issueNumber = context.payload.pull_request.number;
+            if (!issueNumber) {
+              console.log('Could not get pull request number, exiting');
+              return;
+            }
+            const sonarQubeDashboardLink = `https://sonarqube.cicdqa.valid8me.com/dashboard?branch=${{ env.branch }}&id=boxable`;
+            
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+            });
+            
+            const botComments = comments.data.filter(comment => comment.user.login === 'github-actions[bot]');
+            
+            for (const comment of botComments) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: comment.id,
+              });
+            }
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `🔍 [View SonarQube Dashboard](${sonarQubeDashboardLink})`
+            });
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
+
+      - name : Check Sonar quality gate
+        run : |
+          SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
+          response=$(curl -s -u "$SONAR_TOKEN:" https://sonarqube.cicdqa.valid8me.com/api/qualitygates/project_status?projectKey=boxable&branch=${{env.branch}})
+          status=$(echo "$response" | jq -r '.projectStatus.status')
+          echo $status
+          if [ "$status" = "ERROR" ]; then
+            echo "SonarQube Quality Gate check failed: $status"
+            exit 1
+          else
+            echo "SonarQube Quality Gate check passed: $status"
+          fi
+
+      - name: Revoke move Runner IP Address
+        if: always()
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id $SONAR_INSTANCE_SG_ID \
+            --protocol all \
+            --port 443 \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32

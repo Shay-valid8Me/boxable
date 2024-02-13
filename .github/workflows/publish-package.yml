@@ -1,0 +1,144 @@
+name: publish package
+on:
+  workflow_dispatch:
+    # inputs:
+    #   version:
+    #     type: choice
+    #     description: Select version type
+    #     options:
+    #       - patch
+    #       - minor
+
+
+env:
+  AWS_REGION: eu-west-1
+  GITHUB_TOKEN: ${{ secrets.PAT_GITHUB_PACKAGES }}
+    
+jobs:
+  build:
+    if: contains('["zuddin-v8m","dhayes-v8m","Shay-valid8Me"]', github.actor) && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: write
+    steps:
+        - uses: actions/checkout@v3
+          with:
+            fetch-depth: 0
+            token: ${{ secrets.PAT_GITHUB_PACKAGES }}
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v2
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_DEV }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+            aws-region: ${{ env.AWS_REGION }}
+
+        - name: setup git
+          run: |
+            git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+            git config user.name "$GITHUB_ACTOR"   
+
+        - name: Set up Java
+          uses: actions/setup-java@v3
+          with:
+            distribution: 'corretto'
+            java-version: '11'
+            cache: 'gradle'
+
+        - name: Set Code CodeArtifact Authentication Token
+          run: |
+            CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain valid8me-apis --domain-owner 408449989826 --region eu-west-1 --query authorizationToken --output text)
+            echo "CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN" >> $GITHUB_ENV
+
+        - name : Build
+          run: |
+           chmod +x ./gradlew
+           ./gradlew build -x spotlessCheck
+
+        - name: Bump Version
+          working-directory: lib
+          run : |
+            chmod +x bump-version.sh
+            ./bump-version.sh
+
+        - name: commit changes
+          run: |
+            git add lib/build.gradle
+            git commit -m "Bump version"
+            git push
+
+  merge-to-master:
+    # if: false
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_GITHUB_PACKAGES }}
+      - uses: actions/setup-node@v3
+      - name: setup git
+        run: |
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config user.name "$GITHUB_ACTOR"   
+
+      - name: pull changes
+        run: |
+          git pull
+      
+      - name: checkout merge and push master
+        run: | 
+          git checkout master
+          git merge develop
+          git push origin master    
+                      
+
+  publish-package:
+    needs: merge-to-master
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_GITHUB_PACKAGES }}
+
+      - name: setup git
+        run: |
+          git pull
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config user.name "$GITHUB_ACTOR" 
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_DEV }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+            aws-region: ${{ env.AWS_REGION }}
+
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+            distribution: 'corretto'
+            java-version: '11'
+            cache: 'gradle'
+
+      - name: Set Code CodeArtifact Authentication Token
+        run: |
+            CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain valid8me-apis --domain-owner 408449989826 --region eu-west-1 --query authorizationToken --output text)
+            echo "CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN" >> $GITHUB_ENV
+
+      - name : Build
+        run: |
+          chmod +x ./gradlew
+          ./gradlew build -x spotlessCheck
+
+      - name: Publish
+        run: |
+          chmod +x ./gradlew
+          ./gradlew publish -x spotlessCheck
